@@ -3,12 +3,17 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"net"	
+	"net"
+
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/icmp"
 )
 
-func main() {
+
+func ping_ipv4(ip string){//, ch chan string){
+	const IPV4_ICMP = 1
+
+	fmt.Println(ip)
 	// switch runtime.GOOS {
 	// case "darwin":
 	// case "linux":
@@ -35,7 +40,7 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	if _, err := c.WriteTo(wb, &net.UDPAddr{IP: net.ParseIP("127.0.0.1")}); err != nil {
+	if _, err := c.WriteTo(wb, &net.UDPAddr{IP: net.ParseIP(ip)}); err != nil {
 		fmt.Println(err)
 	}
 
@@ -44,16 +49,27 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	rm, err := icmp.ParseMessage(1, rb[:n])
+	
+	rm, err := icmp.ParseMessage(IPV4_ICMP, rb[:n])
 	if err != nil {
 		fmt.Println(err)
 	}
 
-
+	message := ""
 	switch rm.Type {
 	case ipv4.ICMPTypeEchoReply:
-		fmt.Println("got reflection from %v", peer)
+		message += ("got reflection from "+peer.String()+"\n")
+		fmt.Println(message)
 	default:
-		fmt.Println("got %+v; want echo reply", rm)
+		fmt.Printf("got %+v; want echo reply\n", rm)
 	}
+	//ch <- message
+}
+
+func main() {
+	// ch := make(chan string)
+	go ping_ipv4("160.16.87.149") //, ch)
+	go ping_ipv4("127.0.0.1") //, ch)
+	// res1, res2 := <-ch, <-ch
+    // fmt.Println(res1, res2)
 }
