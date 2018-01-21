@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	// "reflect"
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/icmp"
@@ -29,10 +30,12 @@ func ping_ipv4(ip string, ch chan string){
 	}
 	defer c.Close()
 
+	id := rand.Intn(65535)
+	fmt.Println(id)
 	wm := icmp.Message{
 		Type: ipv4.ICMPTypeEcho, Code: 0,
 		Body: &icmp.Echo{
-			ID: rand.Intn(65535),
+			ID: id,
 			Data: []byte("HELLO-R-U-THERE"),
 		},
 	}
@@ -44,25 +47,32 @@ func ping_ipv4(ip string, ch chan string){
 		fmt.Println(err)
 	}
 
-	rb := make([]byte, 1500)
-	n, peer, err := c.ReadFrom(rb)
-	if err != nil {
-		fmt.Println(err)
-	}
-	
-	rm, err := icmp.ParseMessage(IPV4_ICMP, rb[:n])
-	if err != nil {
-		fmt.Println(err)
+	for{
+		rb := make([]byte, 1500)
+		n, peer, err := c.ReadFrom(rb)
+		if err != nil {
+			fmt.Println(err)
+		}
+		rm, err := icmp.ParseMessage(IPV4_ICMP, rb[:n])
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		if rm.Body.(*icmp.Echo).ID == id {
+			message := ""
+			switch rm.Type {
+			case ipv4.ICMPTypeEchoReply:
+				message += ("got reflection from "+peer.String()+"\n")
+			default:
+				fmt.Printf("got %+v; want echo reply\n", rm)
+			}
+			ch <- message
+			
+			break
+		}
+
 	}
 
-	message := ""
-	switch rm.Type {
-	case ipv4.ICMPTypeEchoReply:
-		message += ("got reflection from "+peer.String()+"\n")
-	default:
-		fmt.Printf("got %+v; want echo reply\n", rm)
-	}
-	ch <- message
 }
 
 func main() {
