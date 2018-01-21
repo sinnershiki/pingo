@@ -6,12 +6,11 @@ import (
 	"net"
 	// "reflect"
 
-	"golang.org/x/net/ipv4"
 	"golang.org/x/net/icmp"
+	"golang.org/x/net/ipv4"
 )
 
-
-func ping_ipv4(ip string, ch chan string){
+func ping_ipv4(ip string, ch chan string) {
 	const IPV4_ICMP = 1
 
 	fmt.Println(ip)
@@ -35,7 +34,7 @@ func ping_ipv4(ip string, ch chan string){
 	wm := icmp.Message{
 		Type: ipv4.ICMPTypeEcho, Code: 0,
 		Body: &icmp.Echo{
-			ID: id,
+			ID:   id,
 			Data: []byte("HELLO-R-U-THERE"),
 		},
 	}
@@ -47,7 +46,7 @@ func ping_ipv4(ip string, ch chan string){
 		fmt.Println(err)
 	}
 
-	for{
+	for {
 		rb := make([]byte, 1500)
 		n, peer, err := c.ReadFrom(rb)
 		if err != nil {
@@ -62,12 +61,12 @@ func ping_ipv4(ip string, ch chan string){
 			message := ""
 			switch rm.Type {
 			case ipv4.ICMPTypeEchoReply:
-				message += ("got reflection from "+peer.String()+"\n")
+				message += ("got reflection from " + peer.String() + "\n")
 			default:
 				fmt.Printf("got %+v; want echo reply\n", rm)
 			}
 			ch <- message
-			
+
 			break
 		}
 
@@ -80,5 +79,5 @@ func main() {
 	go ping_ipv4("160.16.87.149", ch)
 	go ping_ipv4("127.0.0.1", ch)
 	res1, res2 := <-ch, <-ch
-    fmt.Println(res1, res2)
+	fmt.Println(res1, res2)
 }
