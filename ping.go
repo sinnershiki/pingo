@@ -10,7 +10,7 @@ import (
 )
 
 
-func ping_ipv4(ip string){//, ch chan string){
+func ping_ipv4(ip string, ch chan string){
 	const IPV4_ICMP = 1
 
 	fmt.Println(ip)
@@ -59,17 +59,16 @@ func ping_ipv4(ip string){//, ch chan string){
 	switch rm.Type {
 	case ipv4.ICMPTypeEchoReply:
 		message += ("got reflection from "+peer.String()+"\n")
-		fmt.Println(message)
 	default:
 		fmt.Printf("got %+v; want echo reply\n", rm)
 	}
-	//ch <- message
+	ch <- message
 }
 
 func main() {
-	// ch := make(chan string)
-	go ping_ipv4("160.16.87.149") //, ch)
-	go ping_ipv4("127.0.0.1") //, ch)
-	// res1, res2 := <-ch, <-ch
-    // fmt.Println(res1, res2)
+	ch := make(chan string)
+	go ping_ipv4("160.16.87.149", ch)
+	go ping_ipv4("127.0.0.1", ch)
+	res1, res2 := <-ch, <-ch
+    fmt.Println(res1, res2)
 }
