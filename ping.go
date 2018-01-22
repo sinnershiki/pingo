@@ -57,16 +57,8 @@ func ping_ipv4(ip string, ch chan string) {
 			fmt.Println(err)
 		}
 
-		if rm.Body.(*icmp.Echo).ID == id {
-			message := ""
-			switch rm.Type {
-			case ipv4.ICMPTypeEchoReply:
-				message += ("got reflection from " + peer.String() + "\n")
-			default:
-				fmt.Printf("got %+v; want echo reply\n", rm)
-			}
-			ch <- message
-
+		if rm.Type == ipv4.ICMPTypeEcho && rm.Body.(*icmp.Echo).ID == id {
+			ch <- "got reflection from " + peer.String() + "\n"
 			break
 		}
 
