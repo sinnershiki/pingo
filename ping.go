@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	//"flag"
-	//"reflect"
+	"flag"
 
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
 )
+
+var ipNum = 0
 
 func ping_ipv4(ip string, ch chan string) {
 	const IPV4_ICMP = 1
@@ -21,7 +22,6 @@ func ping_ipv4(ip string, ch chan string) {
 	defer c.Close()
 
 	id := rand.Intn(65535)
-	fmt.Println(id)
 	wm := icmp.Message{
 		Type: ipv4.ICMPTypeEcho, Code: 0,
 		Body: &icmp.Echo{
@@ -49,8 +49,11 @@ func ping_ipv4(ip string, ch chan string) {
 		}
 
 		if rm.Type == ipv4.ICMPTypeEchoReply && rm.Body.(*icmp.Echo).ID == id {
-			fmt.Println(rm.Body.(*icmp.Echo).ID)
+			ipNum--
 			ch <- "got reflection from " + peer.String() + "\n"
+			if ipNum == 0 {
+				close(ch)
+			}
 			break
 		}
 
@@ -59,9 +62,18 @@ func ping_ipv4(ip string, ch chan string) {
 }
 
 func main() {
+    flag.Parse()
+    ips := flag.Args()
+    fmt.Println(ips)
+	ipNum = len(ips)
+	
 	ch := make(chan string)
-	go ping_ipv4("160.16.87.149", ch)
-	go ping_ipv4("127.0.0.1", ch)
-	res1, res2 := <-ch, <-ch
-	fmt.Println(res1, res2)
+
+	for _, ip := range ips {
+		go ping_ipv4(ip, ch)
+	}
+
+    for elem := range ch {
+        fmt.Println(elem)
+    }
 }
