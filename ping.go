@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	// "reflect"
+	//"flag"
+	//"reflect"
 
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
@@ -12,16 +13,6 @@ import (
 
 func ping_ipv4(ip string, ch chan string) {
 	const IPV4_ICMP = 1
-
-	fmt.Println(ip)
-	// switch runtime.GOOS {
-	// case "darwin":
-	// case "linux":
-	// 	log.Println("you may need to adjust the net.ipv4.ping_group_range kernel state")
-	// default:
-	// 	log.Println("not supported on", runtime.GOOS)
-	// 	return
-	// }
 
 	c, err := icmp.ListenPacket("udp4", "0.0.0.0")
 	if err != nil {
@@ -57,7 +48,8 @@ func ping_ipv4(ip string, ch chan string) {
 			fmt.Println(err)
 		}
 
-		if rm.Type == ipv4.ICMPTypeEcho && rm.Body.(*icmp.Echo).ID == id {
+		if rm.Type == ipv4.ICMPTypeEchoReply && rm.Body.(*icmp.Echo).ID == id {
+			fmt.Println(rm.Body.(*icmp.Echo).ID)
 			ch <- "got reflection from " + peer.String() + "\n"
 			break
 		}
