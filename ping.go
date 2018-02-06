@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net"
 	"flag"
+	"time"
 
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
@@ -18,9 +19,17 @@ func ping_ipv4(ip string, ch chan string) {
 	c, err := icmp.ListenPacket("udp4", "0.0.0.0")
 	if err != nil {
 		fmt.Println(err)
-	}
+	}	
 	defer c.Close()
 
+	t := time.Now()
+    t = t.Add(time.Duration(1) * time.Second)
+	
+	err = c.SetReadDeadline(t)
+	if err != nil {
+		fmt.Println(err)
+	}
+	
 	id := rand.Intn(65535)
 	wm := icmp.Message{
 		Type: ipv4.ICMPTypeEcho, Code: 0,
@@ -41,7 +50,10 @@ func ping_ipv4(ip string, ch chan string) {
 		rb := make([]byte, 1500)
 		n, peer, err := c.ReadFrom(rb)
 		if err != nil {
-			fmt.Println(err)
+			//fmt.Println(err)
+			fmt.Println("timeout")
+			ipNum--
+			break;
 		}
 		rm, err := icmp.ParseMessage(IPV4_ICMP, rb[:n])
 		if err != nil {
@@ -49,16 +61,14 @@ func ping_ipv4(ip string, ch chan string) {
 		}
 
 		if rm.Type == ipv4.ICMPTypeEchoReply && rm.Body.(*icmp.Echo).ID == id {
-			ipNum--
 			ch <- "got reflection from " + peer.String() + "\n"
-			if ipNum == 0 {
-				close(ch)
-			}
+			ipNum--
 			break
 		}
-
 	}
-
+	if ipNum == 0 {
+		close(ch)
+	}
 }
 
 func main() {
