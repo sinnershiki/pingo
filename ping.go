@@ -1,10 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"net"
-	"flag"
 	"time"
 
 	"golang.org/x/net/icmp"
@@ -19,17 +19,17 @@ func ping_ipv4(ip string, ch chan string) {
 	c, err := icmp.ListenPacket("udp4", "0.0.0.0")
 	if err != nil {
 		fmt.Println(err)
-	}	
+	}
 	defer c.Close()
 
 	t := time.Now()
-    t = t.Add(time.Duration(1) * time.Second)
-	
+	t = t.Add(time.Duration(1) * time.Second)
+
 	err = c.SetReadDeadline(t)
 	if err != nil {
 		fmt.Println(err)
 	}
-	
+
 	id := rand.Intn(65535)
 	wm := icmp.Message{
 		Type: ipv4.ICMPTypeEcho, Code: 0,
@@ -53,7 +53,7 @@ func ping_ipv4(ip string, ch chan string) {
 			//fmt.Println(err)
 			fmt.Println("timeout")
 			ipNum--
-			break;
+			break
 		}
 		rm, err := icmp.ParseMessage(IPV4_ICMP, rb[:n])
 		if err != nil {
@@ -72,18 +72,18 @@ func ping_ipv4(ip string, ch chan string) {
 }
 
 func main() {
-    flag.Parse()
-    ips := flag.Args()
-    fmt.Println(ips)
+	flag.Parse()
+	ips := flag.Args()
+	fmt.Println(ips)
 	ipNum = len(ips)
-	
+
 	ch := make(chan string)
 
 	for _, ip := range ips {
 		go ping_ipv4(ip, ch)
 	}
 
-    for elem := range ch {
-        fmt.Println(elem)
-    }
+	for elem := range ch {
+		fmt.Println(elem)
+	}
 }
