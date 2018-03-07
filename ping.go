@@ -13,8 +13,13 @@ import (
 
 var ipNum = 0
 
-func ping_ipv4(ip string, ch chan string) {
+func ping_ipv4(host string, ch chan string) {
 	const IPV4_ICMP = 1
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		fmt.Println(err)
+	}
+	ip := ips[0]
 
 	c, err := icmp.ListenPacket("udp4", "0.0.0.0")
 	if err != nil {
@@ -42,7 +47,7 @@ func ping_ipv4(ip string, ch chan string) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	if _, err := c.WriteTo(wb, &net.UDPAddr{IP: net.ParseIP(ip)}); err != nil {
+	if _, err := c.WriteTo(wb, &net.UDPAddr{IP: ip}); err != nil {
 		fmt.Println(err)
 	}
 
