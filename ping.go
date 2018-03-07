@@ -15,26 +15,30 @@ var ipNum = 0
 
 func ping_ipv4(host string, ch chan string) {
 	const IPV4_ICMP = 1
+
+	// fqdnからipを取得
 	ips, err := net.LookupIP(host)
 	if err != nil {
 		fmt.Println(err)
 	}
 	ip := ips[0]
 
+	// listen
 	c, err := icmp.ListenPacket("udp4", "0.0.0.0")
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer c.Close()
 
+	// タイムアウトのための時間
 	t := time.Now()
 	t = t.Add(time.Duration(1) * time.Second)
-
 	err = c.SetReadDeadline(t)
 	if err != nil {
 		fmt.Println(err)
 	}
 
+	// ping
 	id := rand.Intn(65535)
 	wm := icmp.Message{
 		Type: ipv4.ICMPTypeEcho, Code: 0,
@@ -51,6 +55,7 @@ func ping_ipv4(host string, ch chan string) {
 		fmt.Println(err)
 	}
 
+	// receive
 	for {
 		rb := make([]byte, 1500)
 		n, peer, err := c.ReadFrom(rb)
@@ -71,6 +76,8 @@ func ping_ipv4(host string, ch chan string) {
 			break
 		}
 	}
+
+	// 全てのipからpingが返ってくる or timeoutになったらgoroutinを同期
 	if ipNum == 0 {
 		close(ch)
 	}
