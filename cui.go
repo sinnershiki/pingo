@@ -53,7 +53,7 @@ func layout(g *gocui.Gui) error {
 			return err
 		}
 		v.Title = "Pingo"
-		fmt.Fprintln(v, "initializing")
+		fmt.Fprintln(v, "show results")
 	}
 
 	if v, err := g.SetView("console", 0, maxY*2/3, maxX-1, maxY-1); err != nil {
