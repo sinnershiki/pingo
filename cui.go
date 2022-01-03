@@ -66,6 +66,7 @@ func layout(g *gocui.Gui) error {
 		v.Title = "Console"
 		fmt.Fprintln(v, "input")
 	}
+
 	return nil
 }
 
@@ -99,11 +100,31 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 }
 
 func inputedIp(g *gocui.Gui, v *gocui.View) error {
-	return gocui.ErrQuit
+	if err := g.DeleteView("inputIp"); err != nil {
+		return err
+	}
+
+	// フォーカスを変更
+	if _, err := g.SetCurrentView("result"); err != nil {
+		log.Panicln(err)
+		return err
+	}
+
+	return nil
 }
 
 func quitInputIpView(g *gocui.Gui, v *gocui.View) error {
-	return gocui.ErrQuit
+	if err := g.DeleteView("inputIp"); err != nil {
+		return err
+	}
+
+	// フォーカスを変更
+	if _, err := g.SetCurrentView("result"); err != nil {
+		log.Panicln(err)
+		return err
+	}
+
+	return nil
 }
 
 func setInputIpView(g *gocui.Gui, v *gocui.View) error {
@@ -112,7 +133,8 @@ func setInputIpView(g *gocui.Gui, v *gocui.View) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Title = "Please Input IP"
+		v.Title = "Input IP here"
+		v.Editable = true
 	}
 
 	// フォーカスを変更
@@ -136,11 +158,6 @@ func initKeybindings(g *gocui.Gui) error {
 	}
 
 	if err := g.SetKeybinding("inputIp", 'q', gocui.ModNone, quitInputIpView); err != nil {
-		log.Panicln(err)
-		return err
-	}
-
-	if err := g.SetKeybinding("", 'q', gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
 		return err
 	}
