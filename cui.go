@@ -25,15 +25,6 @@ type PingResult struct {
 }
 
 func main() {
-
-	localip := net.ParseIP("127.0.0.1")
-	localResult := pingIpv4(localip, 5)
-	results = append(results, localResult)
-
-	//	ip := net.ParseIP("192.168.1.11")
-	//	result := pingIpv4(ip, 5)
-	//	results = append(results, result)
-
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
 		log.Println(err)
@@ -96,6 +87,7 @@ func updateResultView(g *gocui.Gui, results []PingResult) {
 		ip := v.IP.String()
 		rate := float64(v.ReceivedCount) / (float64(v.ReceivedCount) + float64(v.ErrorCount)) * 100
 		avg_ttl := float64(sum) / float64(len(v.ttls)) / 1000
+		log.Println(avg_ttl)
 		msg += fmt.Sprintf("%s: avg_ttl=%gms, rate=%.2f, received=%d, error=%d\n", ip, avg_ttl, rate, v.ReceivedCount, v.ErrorCount)
 	}
 
