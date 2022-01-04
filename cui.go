@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"os"
 	"time"
 
 	"github.com/jroimartin/gocui"
@@ -14,6 +15,8 @@ import (
 
 const IPV4_ICMP = 1
 
+var results []PingResult
+
 type PingResult struct {
 	IP            net.IP
 	ErrorCount    int
@@ -22,14 +25,18 @@ type PingResult struct {
 }
 
 func main() {
-	var results []PingResult
+
 	localip := net.ParseIP("127.0.0.1")
-	result := pingIpv4(localip, 5)
-	results = append(results, result)
+	localResult := pingIpv4(localip, 5)
+	results = append(results, localResult)
+
+	//	ip := net.ParseIP("192.168.1.11")
+	//	result := pingIpv4(ip, 5)
+	//	results = append(results, result)
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	defer g.Close()
 
@@ -44,6 +51,14 @@ func main() {
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}
+}
+
+func init() {
+	logFile := "./pingo.log"
+	logfile, _ := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	log.SetPrefix("[INFO]")
+	log.SetFlags(log.Ldate | log.Ltime | log.Llongfile)
+	log.SetOutput(logfile)
 }
 
 func layout(g *gocui.Gui) error {
@@ -100,27 +115,33 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 }
 
 func inputedIp(g *gocui.Gui, v *gocui.View) error {
-	if err := g.DeleteView("inputIp"); err != nil {
-		return err
-	}
+	ipStr := g.CurrentView().BufferLines()[0]
+	ip := net.ParseIP(ipStr)
 
-	// フォーカスを変更
 	if _, err := g.SetCurrentView("result"); err != nil {
 		log.Panicln(err)
 		return err
 	}
+
+	if err := g.DeleteView("inputIp"); err != nil {
+		return err
+	}
+
+	result := pingIpv4(ip, 5)
+	results = append(results, result)
+
+	updateResultView(g, results)
 
 	return nil
 }
 
 func quitInputIpView(g *gocui.Gui, v *gocui.View) error {
-	if err := g.DeleteView("inputIp"); err != nil {
+	if _, err := g.SetCurrentView("result"); err != nil {
+		log.Panicln(err)
 		return err
 	}
 
-	// フォーカスを変更
-	if _, err := g.SetCurrentView("result"); err != nil {
-		log.Panicln(err)
+	if err := g.DeleteView("inputIp"); err != nil {
 		return err
 	}
 
@@ -175,7 +196,7 @@ func pingIpv4(ip net.IP, count int) PingResult {
 	// listen
 	c, err := icmp.ListenPacket("udp4", "0.0.0.0")
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	defer c.Close()
 
@@ -184,7 +205,7 @@ func pingIpv4(ip net.IP, count int) PingResult {
 	t = t.Add(time.Duration(1) * time.Second)
 	err = c.SetReadDeadline(t)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	for i := 0; i < count; i++ {
@@ -200,32 +221,39 @@ func pingIpv4(ip net.IP, count int) PingResult {
 		}
 		wb, err := wm.Marshal(nil)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 		if _, err := c.WriteTo(wb, &net.UDPAddr{IP: ip}); err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 
 		// receive
 		rb := make([]byte, 1500)
-		//n, peer, err := c.ReadFrom(rb)
-		n, _, err := c.ReadFrom(rb)
-		if err != nil {
-			fmt.Println(err)
-			result.ErrorCount++
-		}
-		duration := time.Since(start)
+		// wait for reply
+		for {
+			//n, peer, err := c.ReadFrom(rb)
+			n, _, err := c.ReadFrom(rb)
+			if err != nil {
+				log.Println(err)
+				result.ErrorCount++
+				break
+			}
 
-		rm, err := icmp.ParseMessage(IPV4_ICMP, rb[:n])
-		if err != nil {
-			fmt.Println(err)
-			result.ErrorCount++
+			rm, err := icmp.ParseMessage(IPV4_ICMP, rb[:n])
+			if err != nil {
+				log.Println(err)
+				result.ErrorCount++
+				break
+			}
+
+			if rm.Type == ipv4.ICMPTypeEchoReply && rm.Body.(*icmp.Echo).ID == id {
+				duration := time.Since(start)
+				result.ReceivedCount++
+				result.ttls = append(result.ttls, duration)
+				break
+			}
 		}
 
-		if rm.Type == ipv4.ICMPTypeEchoReply && rm.Body.(*icmp.Echo).ID == id {
-			result.ReceivedCount++
-			result.ttls = append(result.ttls, duration)
-		}
 	}
 
 	return result
