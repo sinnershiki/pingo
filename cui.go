@@ -76,7 +76,8 @@ func layout(g *gocui.Gui) error {
 		}
 
 		v.Title = "Console"
-		fmt.Fprintln(v, "input")
+		//TODO: hもつけてヘルプみたいなの出したい
+		fmt.Fprintln(v, "input: n, d")
 	}
 
 	return nil
