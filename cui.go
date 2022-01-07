@@ -5,6 +5,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jroimartin/gocui"
@@ -37,8 +39,6 @@ func main() {
 		log.Panicln(err)
 	}
 
-	updateResultView(g, results)
-
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}
@@ -57,17 +57,24 @@ func layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
+
+		if _, err := g.SetCurrentView("result"); err != nil {
+			return err
+		}
+
 		v.Title = "Pingo"
-		fmt.Fprintln(v, "show results")
+
+		x, _ := v.Size()
+		msg := "[Num] <Dest IP>: Average TTL, Reached ping rate, Unreached ping count\n"
+		msg += strings.Repeat("-", x) + "\n"
+		fmt.Fprintln(v, msg)
 	}
 
 	if v, err := g.SetView("console", 0, maxY*2/3, maxX-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		if _, err := g.SetCurrentView("console"); err != nil {
-			return err
-		}
+
 		v.Title = "Console"
 		fmt.Fprintln(v, "input")
 	}
@@ -75,9 +82,14 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
-func updateResultView(g *gocui.Gui, results []PingResult) {
-	msg := ""
-	for _, v := range results {
+func updateResultView(g *gocui.Gui, results []PingResult) error {
+	x0, _, x1, _, err := g.ViewPosition("result")
+	if err != nil {
+		return err
+	}
+	msg := "[Num] <Dest IP>: Average TTL, Reached ping rate, Unreached ping count\n"
+	msg += strings.Repeat("-", x1-x0) + "\n"
+	for i, v := range results {
 		sum := float64(0)
 		for _, ttl := range v.ttls {
 			sum += float64(ttl.Microseconds())
@@ -86,7 +98,7 @@ func updateResultView(g *gocui.Gui, results []PingResult) {
 		ip := v.IP.String()
 		rate := float64(v.ReceivedCount) / (float64(v.ReceivedCount) + float64(v.ErrorCount)) * 100
 		avg_ttl := float64(sum) / float64(len(v.ttls)) / 1000
-		msg += fmt.Sprintf("%s: avg_ttl=%gms, rate=%.2f, received=%d, error=%d\n", ip, avg_ttl, rate, v.ReceivedCount, v.ErrorCount)
+		msg += fmt.Sprintf("[%d] %s: avg_ttl=%gms, rate=%.2f, received=%d, error=%d\n", i+1, ip, avg_ttl, rate, v.ReceivedCount, v.ErrorCount)
 	}
 
 	g.Update(func(g *gocui.Gui) error {
@@ -98,6 +110,8 @@ func updateResultView(g *gocui.Gui, results []PingResult) {
 		fmt.Fprintln(v, msg)
 		return nil
 	})
+
+	return nil
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
@@ -120,18 +134,47 @@ func inputedIp(g *gocui.Gui, v *gocui.View) error {
 	result := pingIpv4(ip, 5)
 	results = append(results, result)
 
-	updateResultView(g, results)
+	if err := updateResultView(g, results); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func quitInputIpView(g *gocui.Gui, v *gocui.View) error {
+func inputedResultNum(g *gocui.Gui, v *gocui.View) error {
+	num, err := strconv.Atoi(g.CurrentView().BufferLines()[0])
+	if err != nil {
+		log.Panicln(err)
+		return err
+	}
+
 	if _, err := g.SetCurrentView("result"); err != nil {
 		log.Panicln(err)
 		return err
 	}
 
-	if err := g.DeleteView("inputIp"); err != nil {
+	if err := g.DeleteView("inputResultNum"); err != nil {
+		return err
+	}
+
+	results = remove(results, num-1)
+
+	if err := updateResultView(g, results); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func quitInputView(g *gocui.Gui, v *gocui.View) error {
+	viewname := g.CurrentView().Title
+
+	if _, err := g.SetCurrentView("result"); err != nil {
+		log.Panicln(err)
+		return err
+	}
+
+	if err := g.DeleteView(viewname); err != nil {
 		return err
 	}
 
@@ -157,6 +200,25 @@ func setInputIpView(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+func setInputResultNumView(g *gocui.Gui, v *gocui.View) error {
+	maxX, maxY := g.Size()
+	if v, err := g.SetView("inputResultNum", maxX/2-10, maxY/2-1, maxX/2+9, maxY/2+1); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Title = "Input Result Number"
+		v.Editable = true
+	}
+
+	// フォーカスを変更
+	if _, err := g.SetCurrentView("inputResultNum"); err != nil {
+		log.Panicln(err)
+		return err
+	}
+
+	return nil
+}
+
 func initKeybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
@@ -168,7 +230,17 @@ func initKeybindings(g *gocui.Gui) error {
 		return err
 	}
 
-	if err := g.SetKeybinding("inputIp", 'q', gocui.ModNone, quitInputIpView); err != nil {
+	if err := g.SetKeybinding("inputIp", 'q', gocui.ModNone, quitInputView); err != nil {
+		log.Panicln(err)
+		return err
+	}
+
+	if err := g.SetKeybinding("inputResultNum", gocui.KeyEnter, gocui.ModNone, inputedResultNum); err != nil {
+		log.Panicln(err)
+		return err
+	}
+
+	if err := g.SetKeybinding("inputResultNum", 'q', gocui.ModNone, quitInputView); err != nil {
 		log.Panicln(err)
 		return err
 	}
@@ -177,7 +249,16 @@ func initKeybindings(g *gocui.Gui) error {
 		log.Panicln(err)
 		return err
 	}
+
+	if err := g.SetKeybinding("", 'd', gocui.ModNone, setInputResultNumView); err != nil {
+		log.Panicln(err)
+		return err
+	}
 	return nil
+}
+
+func remove(slice []PingResult, i int) []PingResult {
+	return slice[:i+copy(slice[i:], slice[i+1:])]
 }
 
 func pingIpv4(ip net.IP, count int) PingResult {
