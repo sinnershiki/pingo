@@ -9,11 +9,8 @@ import (
 	"strings"
 
 	"github.com/jroimartin/gocui"
-	"github.com/sinnershiki/pingo/internal/utils"
 	"github.com/sinnershiki/pingo/pkg/ping"
 )
-
-var results []ping.PingResult
 
 func main() {
 	g, err := gocui.NewGui(gocui.OutputNormal)
@@ -72,23 +69,23 @@ func layout(g *gocui.Gui) error {
 	return nil
 }
 
-func updateResultView(g *gocui.Gui, results []ping.PingResult) error {
+func updateResultView(g *gocui.Gui) error {
 	x0, _, x1, _, err := g.ViewPosition("result")
 	if err != nil {
 		return err
 	}
 	msg := "[Num] <Dest IP>: Average TTL, Reached ping rate, Unreached ping count\n"
 	msg += strings.Repeat("-", x1-x0) + "\n"
-	for i, v := range results {
+	for i, p := range ping.Pingers {
 		sum := float64(0)
-		for _, ttl := range v.TTLs {
-			sum += float64(ttl.Microseconds())
+		for _, rtt := range p.Rtts {
+			sum += float64(rtt.Microseconds())
 		}
 
-		ip := v.IP.String()
-		rate := float64(v.ReceivedCount) / (float64(v.ReceivedCount) + float64(v.ErrorCount)) * 100
-		avg_ttl := float64(sum) / float64(len(v.TTLs)) / 1000
-		msg += fmt.Sprintf("[%d] %s: avg_ttl=%gms, rate=%.2f, received=%d, error=%d\n", i+1, ip, avg_ttl, rate, v.ReceivedCount, v.ErrorCount)
+		ip := p.IP.String()
+		rate := float64(p.ReceivedCount) / (float64(p.ReceivedCount) + float64(p.ErrorCount)) * 100
+		avg_rtt := float64(sum) / float64(len(p.Rtts)) / 1000
+		msg += fmt.Sprintf("[%d] %s: avg_rtt=%gms, rate=%.2f, received=%d, error=%d\n", i+1, ip, avg_rtt, rate, p.ReceivedCount, p.ErrorCount)
 	}
 
 	g.Update(func(g *gocui.Gui) error {
@@ -121,10 +118,11 @@ func inputedIp(g *gocui.Gui, v *gocui.View) error {
 		return err
 	}
 
-	result := ping.PingIpv4(ip, 5)
-	results = append(results, result)
+	p := ping.NewPinger(ip)
+	p.PingV4()
+	ping.Pingers = append(ping.Pingers, p)
 
-	if err := updateResultView(g, results); err != nil {
+	if err := updateResultView(g); err != nil {
 		return err
 	}
 
@@ -147,9 +145,9 @@ func inputedResultNum(g *gocui.Gui, v *gocui.View) error {
 		return err
 	}
 
-	results = utils.Remove(results, num-1)
+	ping.RemoveByIndex(num - 1)
 
-	if err := updateResultView(g, results); err != nil {
+	if err := updateResultView(g); err != nil {
 		return err
 	}
 
