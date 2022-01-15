@@ -1,4 +1,4 @@
-module pingo
+module github.com/sinnershiki/pingo
 
 go 1.17
 
