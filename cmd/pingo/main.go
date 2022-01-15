@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jroimartin/gocui"
+	"github.com/sinnershiki/pingo/internal/utils"
 	"github.com/sinnershiki/pingo/pkg/ping"
 )
 
@@ -146,7 +147,7 @@ func inputedResultNum(g *gocui.Gui, v *gocui.View) error {
 		return err
 	}
 
-	results = remove(results, num-1)
+	results = utils.Remove(results, num-1)
 
 	if err := updateResultView(g, results); err != nil {
 		return err
@@ -244,8 +245,4 @@ func initKeybindings(g *gocui.Gui) error {
 		return err
 	}
 	return nil
-}
-
-func remove(slice []ping.PingResult, i int) []ping.PingResult {
-	return slice[:i+copy(slice[i:], slice[i+1:])]
 }
